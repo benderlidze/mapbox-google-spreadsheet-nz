@@ -107,8 +107,6 @@
         <div id="map"></div>
     </div>
 
-    <script src="https://unpkg.com/@mapbox/mapbox-sdk/umd/mapbox-sdk.min.js"></script>
-
     <script>
 
         const mainData = [];
@@ -129,9 +127,9 @@
         ]
 
         mapboxgl.accessToken = 'pk.eyJ1Ijoic2VyZ2JlciIsImEiOiJja3dwOWgzeGQwYWdyMm9xb2pkMDFvYmNuIn0.H9AJ_NLmDNYMed6dvu_Q0A';
-        const mapboxClient = mapboxSdk({ accessToken: mapboxgl.accessToken });
         const map = new mapboxgl.Map({
             container: 'map',
+            accessToken: mapboxgl.accessToken,
             style: 'mapbox://styles/mapbox/streets-v11',
             center: { lng: 172.37334439463166, lat: -42.24026282612157 },
             zoom: 5
@@ -303,11 +301,6 @@
                         .setLngLat({ lat, lon })
                         .setPopup(popup) // sets a popup on this marker
                         .addTo(map);
-
-
-
-
-
 
                 })
 
