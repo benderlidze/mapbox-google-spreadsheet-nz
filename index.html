@@ -7,10 +7,13 @@
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
     <style>
         body {
             margin: 0;
             padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
         }
 
         #map {
@@ -25,7 +28,26 @@
         }
 
         #info {
-            min-width: 300px;
+            min-width: 350px;
+        }
+
+        #countries {
+            margin: 10px;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            align-items: center;
+            cursor: pointer;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        .country {
+            display: flex;
+            padding: 10px 20px;
+            background-color: #f2f2f2;
+            margin: 5px;
         }
     </style>
 </head>
@@ -33,45 +55,176 @@
 <body>
 
     <div id="main">
-        <div id="info"></div>
+        <div id="info">
+            <div id="countries"></div>
+        </div>
         <div id="map"></div>
     </div>
 
     <script src="https://unpkg.com/@mapbox/mapbox-sdk/umd/mapbox-sdk.min.js"></script>
 
     <script>
+
+        const mainData = [];
+        const countries = [
+            {
+                name: "New Zealand",
+                bounds: [[165.21611362034088, -49.69201259953691], [180.05274596705254, -31.35085307747616]],
+                //How to get bounds 1) set the map view on region 2) go to JS console in browser and run -> JSON.stringify(map.getBounds().toArray())
+            },
+            {
+                name: "North America",
+                bounds: [[-169.8382086686954, -34.89145313981448], [-51.70922865142225, 82.59858560605039]]
+            },
+            {
+                name: "Europe",
+                bounds: [[-11.30868537602376, 17.651935461142997], [35.87731580524357, 68.60977089220901]]
+            }
+        ]
+
         mapboxgl.accessToken = 'pk.eyJ1Ijoic2VyZ2JlciIsImEiOiJja3dwOWgzeGQwYWdyMm9xb2pkMDFvYmNuIn0.H9AJ_NLmDNYMed6dvu_Q0A';
         const mapboxClient = mapboxSdk({ accessToken: mapboxgl.accessToken });
-        mapboxClient.geocoding
-            .forwardGeocode({
-                query: 'Wellington, New Zealand',
-                autocomplete: false,
-                limit: 1
-            })
-            .send()
-            .then((response) => {
-                if (
-                    !response ||
-                    !response.body ||
-                    !response.body.features ||
-                    !response.body.features.length
-                ) {
-                    console.error('Invalid response:');
-                    console.error(response);
-                    return;
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: { lng: 172.37334439463166, lat: -42.24026282612157 },
+            zoom: 5
+        });
+
+        map.on("load", () => {
+            new mapboxgl.Marker().setLngLat([0, 0]).addTo(map);
+
+            //fetch data from google spreadsheet 
+            d3.csv('https://docs.google.com/spreadsheets/d/e/2PACX-1vR7YIo3bt9mnptsztqG2WgpKUKj_yPxGciAQyOGT3aHWoLZYPdxTulrt_gjeaR5zxd2bQvu2Ovr2SwT/pub?output=csv')
+                .then(csv => {
+                    console.log('csv', csv);
+                    csv.forEach(item => {
+                        mainData.push({
+                            lat: item.Latitude !== "" ? +item.Latitude : null,
+                            lon: item.Longitude !== "" ? +item.Longitude : null,
+                            ...item
+                        })
+                    })
+                    addMarkers();
+                })
+
+
+            map.addSource('places', {
+                'type': 'geojson',
+                'data': {
+                    'type': 'FeatureCollection',
+                    'features': []
                 }
-                const feature = response.body.features[0];
+            })
 
-                const map = new mapboxgl.Map({
-                    container: 'map',
-                    style: 'mapbox://styles/mapbox/streets-v11',
-                    center: feature.center,
-                    zoom: 10
-                });
-
-                // Create a marker and add it to the map.
-                new mapboxgl.Marker().setLngLat(feature.center).addTo(map);
+            // Add a layer showing the places.
+            map.addLayer({
+                'id': 'places',
+                'type': 'circle',
+                'source': 'places',
+                'paint': {
+                    'circle-color': '#4264fb',
+                    'circle-radius': 10,
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff'
+                }
             });
+
+            map.on('click', 'places', (e) => {
+                // Copy coordinates array.
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const mData = e.features[0].properties;
+                const descr = description(mData)
+
+                // Ensure that if the map is zoomed out such that multiple
+                // copies of the feature are visible, the popup appears
+                // over the copy being pointed to.
+                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                }
+
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(descr)
+                    .addTo(map);
+            });
+
+            // Change the cursor to a pointer when the mouse is over the places layer.
+            map.on('mouseenter', 'places', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            // Change it back to a pointer when it leaves.
+            map.on('mouseleave', 'places', () => {
+                map.getCanvas().style.cursor = '';
+            });
+        })
+        buildCountriesList()
+
+        function buildCountriesList() {
+            if (!countries && countries.length === 0) return;
+
+            const countriesDiv = document.getElementById("countries");
+            const countriesList = countries.map(country => {
+                const div = document.createElement("div")
+                div.className = "country";
+                div.innerText = country.name;
+
+                div.addEventListener("click", () => {
+                    console.log('country', country);
+                    map.fitBounds(country.bounds)
+                })
+
+                countriesDiv.appendChild(div)
+            })
+        }
+
+
+
+        function description(data) {
+
+            const descr = `
+                    <div class="marker-popup">
+                        <h3>${data['Store Name']}</h3>
+                        <div>${data['Country']}, ${data['Region']}</div>
+                        <div><b>${data['Address']}</b></div>
+                        <div>${data['Phone Number']}</div>
+                    </div>
+                `
+            return descr;
+        }
+
+        function addMarkers() {
+
+            //fit map on displayed markers 
+            const bounds = new mapboxgl.LngLatBounds();
+            const markers = mainData
+                .filter(marker => marker.lat !== null && marker.lon !== null)
+                .map(marker => {
+                    const { lat, lon } = marker;
+                    bounds.extend([lon, lat]);
+                    return {
+                        "type": "Feature",
+                        "properties": {
+                            ...marker
+                        },
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [
+                                lon,
+                                lat
+                            ]
+                        }
+                    }
+                })
+            const collection = {
+                "type": "FeatureCollection",
+                "features": markers
+            }
+            map.getSource("places").setData(collection)
+            map.fitBounds(bounds, { padding: 100 });
+        }
+
     </script>
 
 </body>
