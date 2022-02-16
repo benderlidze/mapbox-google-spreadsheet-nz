@@ -16,6 +16,15 @@
             font-family: Arial, Helvetica, sans-serif;
         }
 
+        h4 {
+            padding-top: 0px;
+            margin-top: 0px;
+        }
+
+        a {
+            color: black;
+        }
+
         #map {
             width: 100%;
             height: 100%;
@@ -29,6 +38,8 @@
 
         #info {
             min-width: 350px;
+            display: flex;
+            flex-direction: column;
         }
 
         #countries {
@@ -38,7 +49,6 @@
             flex-wrap: wrap;
             justify-content: flex-start;
             align-items: center;
-            cursor: pointer;
             font-weight: bold;
             user-select: none;
         }
@@ -48,6 +58,41 @@
             padding: 10px 20px;
             background-color: #f2f2f2;
             margin: 5px;
+            cursor: pointer;
+        }
+
+        .loading {
+            padding: 10px;
+            margin: 10px;
+            font-weight: bold;
+        }
+
+        #stores {
+            display: flex;
+            border-top: 1px solid rgb(190, 190, 190);
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .store {
+            padding: 10px;
+            margin: 25px 0px 40px 10px;
+            /* background-color: #f7f7f7; */
+            cursor: pointer;
+        }
+
+        .store>div {
+            margin-top: 10px;
+        }
+
+        .contacts {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .contacts>.phone {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -57,6 +102,7 @@
     <div id="main">
         <div id="info">
             <div id="countries"></div>
+            <div id="stores"></div>
         </div>
         <div id="map"></div>
     </div>
@@ -106,66 +152,67 @@
                         })
                     })
                     addMarkers();
+                    createStoreList();
                 })
 
 
-            map.addSource('places', {
-                'type': 'geojson',
-                'data': {
-                    'type': 'FeatureCollection',
-                    'features': []
-                }
-            })
+            // map.addSource('places', {
+            //     'type': 'geojson',
+            //     'data': {
+            //         'type': 'FeatureCollection',
+            //         'features': []
+            //     }
+            // })
 
-            // Add a layer showing the places.
-            map.addLayer({
-                'id': 'places',
-                'type': 'circle',
-                'source': 'places',
-                'paint': {
-                    'circle-color': '#4264fb',
-                    'circle-radius': 10,
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#ffffff'
-                }
-            });
+            // // Add a layer showing the places.
+            // map.addLayer({
+            //     'id': 'places',
+            //     'type': 'circle',
+            //     'source': 'places',
+            //     'paint': {
+            //         'circle-color': '#4264fb',
+            //         'circle-radius': 10,
+            //         'circle-stroke-width': 2,
+            //         'circle-stroke-color': '#ffffff'
+            //     }
+            // });
 
-            map.on('click', 'places', (e) => {
-                // Copy coordinates array.
-                const coordinates = e.features[0].geometry.coordinates.slice();
-                const mData = e.features[0].properties;
-                const descr = description(mData)
+            // map.on('click', 'places', (e) => {
+            //     // Copy coordinates array.
+            //     const coordinates = e.features[0].geometry.coordinates.slice();
+            //     const mData = e.features[0].properties;
+            //     const descr = description(mData)
 
-                // Ensure that if the map is zoomed out such that multiple
-                // copies of the feature are visible, the popup appears
-                // over the copy being pointed to.
-                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-                }
+            //     // Ensure that if the map is zoomed out such that multiple
+            //     // copies of the feature are visible, the popup appears
+            //     // over the copy being pointed to.
+            //     while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+            //         coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+            //     }
 
-                new mapboxgl.Popup()
-                    .setLngLat(coordinates)
-                    .setHTML(descr)
-                    .addTo(map);
-            });
+            //     new mapboxgl.Popup()
+            //         .setLngLat(coordinates)
+            //         .setHTML(descr)
+            //         .addTo(map);
+            // });
 
-            // Change the cursor to a pointer when the mouse is over the places layer.
-            map.on('mouseenter', 'places', () => {
-                map.getCanvas().style.cursor = 'pointer';
-            });
+            // // Change the cursor to a pointer when the mouse is over the places layer.
+            // map.on('mouseenter', 'places', () => {
+            //     map.getCanvas().style.cursor = 'pointer';
+            // });
 
-            // Change it back to a pointer when it leaves.
-            map.on('mouseleave', 'places', () => {
-                map.getCanvas().style.cursor = '';
-            });
+            // // Change it back to a pointer when it leaves.
+            // map.on('mouseleave', 'places', () => {
+            //     map.getCanvas().style.cursor = '';
+            // });
         })
         buildCountriesList()
 
         function buildCountriesList() {
-            if (!countries && countries.length === 0) return;
+            if (!countries || countries.length === 0) return;
 
             const countriesDiv = document.getElementById("countries");
-            const countriesList = countries.map(country => {
+            countries.forEach(country => {
                 const div = document.createElement("div")
                 div.className = "country";
                 div.innerText = country.name;
@@ -179,16 +226,46 @@
             })
         }
 
+        function createStoreList() {
 
+            if (!mainData || mainData.length === 0) return;
+            const storesDiv = document.getElementById("stores");
+
+            mainData.forEach(store => {
+                const { lat, lon } = store;
+                const div = document.createElement('div');
+                div.className = "store"
+                div.innerHTML = description(store)
+
+                div.addEventListener("click", () => {
+                    console.log('click');
+                    console.log('store', store);
+                    console.log('store', store.marker);
+                    if (store.marker) {
+                        // store.marker.fire("click")
+                        store.marker.click()
+                    }
+
+                    map.flyTo({
+                        center: { lat, lng: lon },
+                        zoom: 13
+                    })
+                })
+
+                storesDiv.appendChild(div);
+            })
+
+        }
 
         function description(data) {
-
             const descr = `
-                    <div class="marker-popup">
-                        <h3>${data['Store Name']}</h3>
-                        <div>${data['Country']}, ${data['Region']}</div>
-                        <div><b>${data['Address']}</b></div>
-                        <div>${data['Phone Number']}</div>
+                    <h4>${data['Store Name']}</h4>
+                    <div>${data['Address']}</div>
+                    <div>${data['Region']}</div>
+                    <div>${data['Country']}<div>
+                    <div class="contacts">
+                        <div class="phone">${data['Phone Number']}</div>
+                        <div class="web"><a href="${data['Website']}" target="_blank">Website</a></div>
                     </div>
                 `
             return descr;
@@ -198,32 +275,75 @@
 
             //fit map on displayed markers 
             const bounds = new mapboxgl.LngLatBounds();
-            const markers = mainData
+            mainData
                 .filter(marker => marker.lat !== null && marker.lon !== null)
-                .map(marker => {
+                .forEach(marker => {
                     const { lat, lon } = marker;
                     bounds.extend([lon, lat]);
-                    return {
-                        "type": "Feature",
-                        "properties": {
-                            ...marker
-                        },
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [
-                                lon,
-                                lat
-                            ]
-                        }
-                    }
+
+                    const text = description(marker);
+                    var popup = new mapboxgl.Popup({ offset: [0, -32] })
+                        .setHTML(text);
+
+                    // create DOM element for the marker
+                    const el = document.createElement('div');
+                    const width = 32;
+                    const height = 32;
+                    el.className = 'marker';
+                    el.style.backgroundImage = `url(marker.png)`;
+                    el.style.width = `${width}px`;
+                    el.style.height = `${height}px`;
+                    el.style.backgroundSize = '100%';
+                    el.style.cursor = 'pointer';
+
+                    marker.marker = el
+
+                    // create the marker
+                    new mapboxgl.Marker(el, { color: 'black', offset: [0, -16] })
+                        .setLngLat({ lat, lon })
+                        .setPopup(popup) // sets a popup on this marker
+                        .addTo(map);
+
+
+
+
+
+
                 })
-            const collection = {
-                "type": "FeatureCollection",
-                "features": markers
-            }
-            map.getSource("places").setData(collection)
+
             map.fitBounds(bounds, { padding: 100 });
         }
+
+        // function addMarkers() {
+
+        //     //fit map on displayed markers
+        //     const bounds = new mapboxgl.LngLatBounds();
+        //     const markers = mainData
+        //         .filter(marker => marker.lat !== null && marker.lon !== null)
+        //         .map(marker => {
+        //             const { lat, lon } = marker;
+        //             bounds.extend([lon, lat]);
+        //             return {
+        //                 "type": "Feature",
+        //                 "properties": {
+        //                     ...marker
+        //                 },
+        //                 "geometry": {
+        //                     "type": "Point",
+        //                     "coordinates": [
+        //                         lon,
+        //                         lat
+        //                     ]
+        //                 }
+        //             }
+        //         })
+        //     const collection = {
+        //         "type": "FeatureCollection",
+        //         "features": markers
+        //     }
+        //     map.getSource("places").setData(collection)
+        //     map.fitBounds(bounds, { padding: 100 });
+        // }
 
     </script>
 
