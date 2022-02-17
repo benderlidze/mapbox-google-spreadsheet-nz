@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Example</title>
+    <title>Example map</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.js"></script>
@@ -94,6 +94,77 @@
         .contacts>.phone {
             text-decoration: underline;
         }
+
+        #search-div {
+            padding: 15px;
+            border-bottom: 1px solid #d4d4d4;
+        }
+
+        #search {
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #title {
+            padding: 15px;
+            font-weight: bold;
+        }
+
+        /*AUTOCOMPLETE PART*/
+
+        .autocomplete {
+            position: relative;
+            display: inline-block;
+        }
+
+        input {
+            border: 1px solid transparent;
+            background-color: #f1f1f1;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        input[type=text] {
+            background-color: #f1f1f1;
+            width: 100%;
+        }
+
+        input[type=submit] {
+            background-color: DodgerBlue;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d4d4d4;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            /*position the autocomplete items to be the same width as the container:*/
+            top: 100%;
+            left: 0;
+            right: 0;
+        }
+
+        .autocomplete-items div {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #fff;
+            border-bottom: 1px solid #d4d4d4;
+        }
+
+        /*when hovering an item:*/
+        .autocomplete-items div:hover {
+            background-color: #e9e9e9;
+        }
+
+        /*when navigating through the items using the arrow keys:*/
+        .autocomplete-active {
+            background-color: DodgerBlue !important;
+            color: #ffffff;
+        }
     </style>
 </head>
 
@@ -101,6 +172,16 @@
 
     <div id="main">
         <div id="info">
+            <div id="title">Find a Stockist</div>
+            <div id="search-div">
+
+
+                <div class="autocomplete" style="width:300px;">
+                    <input id="search" type="text" placeholder="Search by city or country" autocomplete="off">
+                </div>
+
+
+            </div>
             <div id="countries"></div>
             <div id="stores"></div>
         </div>
@@ -125,8 +206,18 @@
                 bounds: [[-11.30868537602376, 17.651935461142997], [35.87731580524357, 68.60977089220901]]
             }
         ]
+        const cities = [
+            {
+                name: "Auckland",
+                center: [174.78230349839694, -36.890790930531026]
+            },
+            {
+                name: "Northland",
+                center: [173.83479195553014, -35.48326951576777]
+            }
+        ]
 
-        mapboxgl.accessToken = 'pk.eyJ1Ijoic2VyZ2JlciIsImEiOiJja3dwOWgzeGQwYWdyMm9xb2pkMDFvYmNuIn0.H9AJ_NLmDNYMed6dvu_Q0A';
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZmFyYWRheTIiLCJhIjoiTUVHbDl5OCJ9.buFaqIdaIM3iXr1BOYKpsQ';
         const map = new mapboxgl.Map({
             container: 'map',
             accessToken: mapboxgl.accessToken,
@@ -139,7 +230,7 @@
             new mapboxgl.Marker().setLngLat([0, 0]).addTo(map);
 
             //fetch data from google spreadsheet 
-            d3.csv('https://docs.google.com/spreadsheets/d/e/2PACX-1vR7YIo3bt9mnptsztqG2WgpKUKj_yPxGciAQyOGT3aHWoLZYPdxTulrt_gjeaR5zxd2bQvu2Ovr2SwT/pub?output=csv')
+            d3.csv('https://docs.google.com/spreadsheets/d/e/2PACX-1vR7YIo3bt9mnptsztqG2WgpKUKj_yPxGciAQyOGT3aHWoLZYPdxTulrt_gjeaR5zxd2bQvu2Ovr2SwT/pub?output=csv&' + Math.floor(Math.random() * 1000))
                 .then(csv => {
                     console.log('csv', csv);
                     csv.forEach(item => {
@@ -150,7 +241,15 @@
                         })
                     })
                     addMarkers();
-                    createStoreList();
+                    createStoreList(mainData);
+
+                    const autocompleteData = [
+                        ...countries,
+                        ...cities
+                    ]
+
+                    autocomplete(document.getElementById("search"), autocompleteData, map);
+
                 })
 
 
@@ -224,12 +323,12 @@
             })
         }
 
-        function createStoreList() {
+        function createStoreList(data) {
 
-            if (!mainData || mainData.length === 0) return;
+            if (!data || data.length === 0) return;
             const storesDiv = document.getElementById("stores");
 
-            mainData.forEach(store => {
+            data.forEach(store => {
                 const { lat, lon } = store;
                 const div = document.createElement('div');
                 div.className = "store"
@@ -307,6 +406,13 @@
             map.fitBounds(bounds, { padding: 100 });
         }
 
+        function filterListByCountry(name) {
+            console.log('name', name,);
+
+            const data = mainData.filter(item)
+            createStoreList(data)
+        }
+
         // function addMarkers() {
 
         //     //fit map on displayed markers
@@ -337,6 +443,127 @@
         //     map.getSource("places").setData(collection)
         //     map.fitBounds(bounds, { padding: 100 });
         // }
+
+
+
+        function autocomplete(inp, arr, mapRef) {
+
+            const map = mapRef;
+            /*the autocomplete function takes two arguments,
+            the text field element and an array of possible autocompleted values:*/
+            var currentFocus;
+            /*execute a function when someone writes in the text field:*/
+            inp.addEventListener("input", function (e) {
+                var a, b, i, val = this.value;
+                /*close any already open lists of autocompleted values*/
+                closeAllLists();
+                if (!val) { return false; }
+                currentFocus = -1;
+                /*create a DIV element that will contain the items (values):*/
+                a = document.createElement("DIV");
+                a.setAttribute("id", this.id + "autocomplete-list");
+                a.setAttribute("class", "autocomplete-items");
+                /*append the DIV element as a child of the autocomplete container:*/
+                this.parentNode.appendChild(a);
+                /*for each item in the array...*/
+                for (i = 0; i < arr.length; i++) {
+                    /*check if the item starts with the same letters as the text field value:*/
+
+                    const { name, bounds, center } = arr[i];
+
+                    //if (name.substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+                    if (name.toUpperCase().includes(val.toUpperCase())) {
+                        /*create a DIV element for each matching element:*/
+                        b = document.createElement("DIV");
+                        /*make the matching letters bold:*/
+
+                        const start = name.toLowerCase().indexOf(val)
+                        const length = start + val.length
+
+                        b.innerHTML = name.substr(0, start);
+                        b.innerHTML += "<strong>" + name.substr(start, val.length) + "</strong>";
+                        b.innerHTML += name.substr(length);
+
+                        /*insert a input field that will hold the current array item's value:*/
+                        b.innerHTML += "<input type='hidden' value='" + name + "'>";
+                        /*execute a function when someone clicks on the item value (DIV element):*/
+                        b.addEventListener("click", function (e) {
+                            /*insert the value for the autocomplete text field:*/
+                            inp.value = this.getElementsByTagName("input")[0].value;
+                            /*close the list of autocompleted values,
+                            (or any other open lists of autocompleted values:*/
+                            closeAllLists();
+                            if (bounds && bounds.length > 0) {
+                                map.fitBounds(bounds)
+                            }
+                            if (center && center.length > 0) {
+                                map.flyTo({
+                                    center
+                                })
+                            }
+
+                            filterListByCountry(name)
+                        });
+                        a.appendChild(b);
+                    }
+                }
+            });
+            /*execute a function presses a key on the keyboard:*/
+            inp.addEventListener("keydown", function (e) {
+                var x = document.getElementById(this.id + "autocomplete-list");
+                if (x) x = x.getElementsByTagName("div");
+                if (e.keyCode == 40) {
+                    /*If the arrow DOWN key is pressed,
+                    increase the currentFocus variable:*/
+                    currentFocus++;
+                    /*and and make the current item more visible:*/
+                    addActive(x);
+                } else if (e.keyCode == 38) { //up
+                    /*If the arrow UP key is pressed,
+                    decrease the currentFocus variable:*/
+                    currentFocus--;
+                    /*and and make the current item more visible:*/
+                    addActive(x);
+                } else if (e.keyCode == 13) {
+                    /*If the ENTER key is pressed, prevent the form from being submitted,*/
+                    e.preventDefault();
+                    if (currentFocus > -1) {
+                        /*and simulate a click on the "active" item:*/
+                        if (x) x[currentFocus].click();
+                    }
+                }
+            });
+            function addActive(x) {
+                /*a function to classify an item as "active":*/
+                if (!x) return false;
+                /*start by removing the "active" class on all items:*/
+                removeActive(x);
+                if (currentFocus >= x.length) currentFocus = 0;
+                if (currentFocus < 0) currentFocus = (x.length - 1);
+                /*add class "autocomplete-active":*/
+                x[currentFocus].classList.add("autocomplete-active");
+            }
+            function removeActive(x) {
+                /*a function to remove the "active" class from all autocomplete items:*/
+                for (var i = 0; i < x.length; i++) {
+                    x[i].classList.remove("autocomplete-active");
+                }
+            }
+            function closeAllLists(elmnt) {
+                /*close all autocomplete lists in the document,
+                except the one passed as an argument:*/
+                var x = document.getElementsByClassName("autocomplete-items");
+                for (var i = 0; i < x.length; i++) {
+                    if (elmnt != x[i] && elmnt != inp) {
+                        x[i].parentNode.removeChild(x[i]);
+                    }
+                }
+            }
+            /*execute a function when someone clicks in the document:*/
+            document.addEventListener("click", function (e) {
+                closeAllLists(e.target);
+            });
+        }
 
     </script>
 
