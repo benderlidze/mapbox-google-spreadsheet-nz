@@ -457,8 +457,6 @@
 
         function autocomplete(inp, arr, mapRef) {
 
-            console.log('arr', arr);
-
             const map = mapRef;
             /*the autocomplete function takes two arguments,
             the text field element and an array of possible autocompleted values:*/
@@ -493,7 +491,7 @@
 
                         b.innerHTML = name.substr(0, start);
                         b.innerHTML += "<strong>" + name.substr(start, val.length) + "</strong>";
-                        b.innerHTML += name.substr(length);
+                        b.innerHTML += name.substr(length) + " - " + type;
 
                         /*insert a input field that will hold the current array item's value:*/
                         b.innerHTML += "<input type='hidden' value='" + name + "'>";
