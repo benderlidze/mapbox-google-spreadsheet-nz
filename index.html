@@ -196,24 +196,29 @@
                 name: "New Zealand",
                 bounds: [[165.21611362034088, -49.69201259953691], [180.05274596705254, -31.35085307747616]],
                 //How to get bounds 1) set the map view on region 2) go to JS console in browser and run -> JSON.stringify(map.getBounds().toArray())
+                type: "country"
             },
             {
                 name: "North America",
-                bounds: [[-169.8382086686954, -34.89145313981448], [-51.70922865142225, 82.59858560605039]]
+                bounds: [[-169.8382086686954, -34.89145313981448], [-51.70922865142225, 82.59858560605039]],
+                type: "country"
             },
             {
                 name: "Europe",
-                bounds: [[-11.30868537602376, 17.651935461142997], [35.87731580524357, 68.60977089220901]]
+                bounds: [[-11.30868537602376, 17.651935461142997], [35.87731580524357, 68.60977089220901]],
+                type: "country"
             }
         ]
         const cities = [
             {
                 name: "Auckland",
-                center: [174.78230349839694, -36.890790930531026]
+                center: [174.78230349839694, -36.890790930531026],
+                type: "city"
             },
             {
                 name: "Northland",
-                center: [173.83479195553014, -35.48326951576777]
+                center: [173.83479195553014, -35.48326951576777],
+                type: "city"
             }
         ]
 
@@ -237,6 +242,9 @@
                         mainData.push({
                             lat: item.Latitude !== "" ? +item.Latitude : null,
                             lon: item.Longitude !== "" ? +item.Longitude : null,
+                            name: `` + item['Store Name'], //for search
+                            center: [+item.Longitude, +item.Latitude],
+                            type: "item",
                             ...item
                         })
                     })
@@ -245,7 +253,8 @@
 
                     const autocompleteData = [
                         ...countries,
-                        ...cities
+                        ...cities,
+                        ...mainData
                     ]
 
                     autocomplete(document.getElementById("search"), autocompleteData, map);
@@ -448,6 +457,8 @@
 
         function autocomplete(inp, arr, mapRef) {
 
+            console.log('arr', arr);
+
             const map = mapRef;
             /*the autocomplete function takes two arguments,
             the text field element and an array of possible autocompleted values:*/
@@ -469,7 +480,7 @@
                 for (i = 0; i < arr.length; i++) {
                     /*check if the item starts with the same letters as the text field value:*/
 
-                    const { name, bounds, center } = arr[i];
+                    const { name, bounds, center, type } = arr[i];
 
                     //if (name.substr(0, val.length).toUpperCase() == val.toUpperCase()) {
                     if (name.toUpperCase().includes(val.toUpperCase())) {
@@ -477,7 +488,7 @@
                         b = document.createElement("DIV");
                         /*make the matching letters bold:*/
 
-                        const start = name.toLowerCase().indexOf(val)
+                        const start = name.toUpperCase().indexOf(val.toUpperCase())
                         const length = start + val.length
 
                         b.innerHTML = name.substr(0, start);
@@ -496,13 +507,19 @@
                             if (bounds && bounds.length > 0) {
                                 map.fitBounds(bounds)
                             }
+
                             if (center && center.length > 0) {
+
+                                const zoom = type && type === "item" ? 14 : map.getZoom()
                                 map.flyTo({
-                                    center
+                                    center,
+                                    zoom
                                 })
                             }
 
-                            filterListByCountry(name)
+                            if (type && type === "country") {
+                                //filterListByCountry(name)
+                            }
                         });
                         a.appendChild(b);
                     }
