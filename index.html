@@ -8,6 +8,8 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script type="text/javascript"
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBzfMl1G0OrMw6cdVydIA4vxiGFmX9P-TI&libraries=places"></script>
 
     <style>
         body {
@@ -49,16 +51,18 @@
             flex-wrap: wrap;
             justify-content: flex-start;
             align-items: center;
-            font-weight: bold;
             user-select: none;
         }
 
         .country {
             display: flex;
-            padding: 10px 20px;
+            padding: 5px 10px;
             background-color: #f2f2f2;
             margin: 5px;
             cursor: pointer;
+            border-radius: 20px;
+            font-size: 0.7rem;
+
         }
 
         .loading {
@@ -180,6 +184,10 @@
                     <input id="search" type="text" placeholder="Search by city or country" autocomplete="off">
                 </div>
 
+                <div class="autocomplete" style="width:300px;margin-top:5px;">
+                    <input id="searchTextField" type="text" size="50" placeholder="Search by city or country (google)">
+                </div>
+
 
             </div>
             <div id="countries"></div>
@@ -221,6 +229,32 @@
                 type: "city"
             }
         ]
+
+        function initialize() {
+            var input = document.getElementById('searchTextField');
+            const autocompleteGoogle = new google.maps.places.Autocomplete(input);
+            autocompleteGoogle.addListener("place_changed", () => {
+                const place = autocompleteGoogle.getPlace();
+                if (!place.geometry || !place.geometry.location) {
+                    // User entered the name of a Place that was not suggested and
+                    // pressed the Enter key, or the Place Details request failed.
+                    window.alert("No details available for input: '" + place.name + "'");
+                    return;
+                }
+                console.log('place', place);
+                // If the place has a geometry, then present it on a map.
+                if (place.geometry.location) {
+                    const { lat, lng } = place.geometry.location.toJSON()
+                    map.flyTo({ center: [lng, lat], zoom: 10 })
+                } else {
+
+                }
+
+            });
+        }
+        google.maps.event.addDomListener(window, 'load', initialize);
+
+
 
         mapboxgl.accessToken = 'pk.eyJ1IjoiZmFyYWRheTIiLCJhIjoiTUVHbDl5OCJ9.buFaqIdaIM3iXr1BOYKpsQ';
         const map = new mapboxgl.Map({
@@ -579,6 +613,9 @@
                 closeAllLists(e.target);
             });
         }
+
+
+
 
     </script>
 
